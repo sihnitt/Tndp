@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TnD Group Project</title>
+  <style>
+ 
+ body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-image: url('20414-electricity-wallpaper.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 0;
+      margin: 0;
+      background-color: #f4f4f4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: rgba(5, 77, 87, 0.2);
+      backdrop-filter: blur(5px);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      max-width: 600px;
+      width: 90%;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #63f225;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 780;
+      color: #ed0808;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #0c0c0c;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    input:hover {
+      background: #dd8707;
+      color: #100f10;
+      font-weight: 780;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: white;
+      font-size: 1rem;
+      font-weight: 780;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddddddc8;
+      padding: 10px;
+      text-align: center;
+      font-weight: 780;
+    }
+    th {
+      background-color: rgba(247, 247, 247, 0.979);
+    }
+    /* Output container blush effect on hover */
+    #output {
+      margin-top: 30px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    #output:hover {
+      background: rgba(94, 25, 36, 0.3);
+      color: #db4109;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>TnD Group Project</h2>
+    <form id="cableForm">
+      <div class="form-group">
+        <label for="voltage">Nominal Voltage (kV):</label>
+        <input type="number" id="voltage" step="0.1" required />
+      </div>
+      <div class="form-group">
+        <label for="coreDiameter">Core Diameter (cm):</label>
+        <input type="number" id="coreDiameter" step="0.01" required />
+      </div>
+      <div class="form-group">
+        <label for="sheathDiameter">Sheath Diameter (cm):</label>
+        <input type="number" id="sheathDiameter" step="0.01" required />
+      </div>
+      <div class="form-group">
+        <label for="interSheaths">Number of Inter-Sheaths:</label>
+        <input type="number" id="interSheaths" />
+      </div>
+      <button type="submit">Calculate</button>
+    </form>
+    <div id="output"></div>
+  </div>
+  
+  <script>
+    // Recursive function to compute voltage values for intersheaths.
+    function solve(a, n, l) {
+      // Base case: if no intersheaths remain, return empty array.
+      if (n === 0) return [];
+      // Compute voltage for the current intersheath using the formula.
+      let voltage = ((Math.pow(a, n + 1) - a) / (Math.pow(a, n + 1) - 1)) * l;
+      // Recursively compute the voltages for (n-1) intersheaths,
+      // passing the current voltage as new l.
+      let rest = solve(a, n - 1, voltage);
+      // Insert the current voltage at the beginning of the array.
+      rest.unshift(voltage);
+      return rest;
+    }
+    
+    document.getElementById("cableForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      
+      // Input values
+      const V_line = parseFloat(document.getElementById("voltage").value);
+      // For a 3-phase system, phase voltage (in Volts)
+      const V = (V_line ) * 1000;
+      const d = parseFloat(document.getElementById("coreDiameter").value);
+      const D = parseFloat(document.getElementById("sheathDiameter").value);
+      const n = parseInt(document.getElementById("interSheaths").value);
+      
+      // Calculate core radius (r0) and sheath inner radius (rN1) in cm.
+      const r0 = d / 2;
+      const rN1 = D / 2;
+      
+      // Calculate alpha (a) = (rN1/r0)^(1/(n+1))
+      const a = Math.pow(rN1 / r0, 1 / (n + 1));
+      
+      // Calculate intersheath radii iteratively.
+      const radii = [];
+      let x = r0;
+      for (let i = 1; i <= n; i++) {
+        x = x * a;
+        radii.push(x);
+      }
+      
+      // Calculate voltages using the recursive function.
+      const voltages = solve(a, n, V);
+      
+      // Compute potential gradients:
+      // With intersheaths:
+      const E_with = ((a - 1) * V) / ((Math.pow(a, n + 1) - 1) * (r0 * Math.log(a)));
+      // Without intersheaths:
+      const E_without = V / (r0 * (n + 1) * Math.log(a));
+      
+      // Build HTML output.
+      let html = "<h3>Output</h3>";
+      html += "<table><tr><th>Inter-sheath</th><th>Diameter (cm)</th><th>Voltage (V)</th></tr>";
+      for (let i = 0; i < n; i++) {
+        html += `<tr><td>${i + 1}</td><td>${(2 * radii[i]).toFixed(2)}</td><td>${voltages[i].toFixed(2)}</td></tr>`;
+      }
+      html += "</table>";
+      html += `<p><strong>Potential Gradient at Core Surface (with inter-sheaths):</strong> ${E_with.toFixed(2)} V/cm</p>`;
+      html += `<p><strong>Potential Gradient without inter-sheaths:</strong> ${E_without.toFixed(2)} V/cm</p>`;
+      
+      document.getElementById("output").innerHTML = html;
+    });
+  </script>
+</body>
+</html>
+
